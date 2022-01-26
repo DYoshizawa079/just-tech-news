@@ -2,8 +2,17 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/connection');
 
+const bcrypt = require('bcrypt');
+
 // Create user model by inheriting functionalities of the Model class
-class User extends Model {}
+class User extends Model {
+
+    // set up method to run on instance data (per user) to check password
+    checkPassword(loginPw) {
+        return bcrypt.compareSync(loginPw, this.password);
+    }
+    
+}
 
 // Define table columns and configuration
 User.init (
@@ -34,7 +43,7 @@ User.init (
             unique: true,
             // if allowNull is set to false, we can run our data through validators before creating the table data
             validate: {
-            isEmail: true
+                isEmail: true
             }
         },
         // define a password column
@@ -42,12 +51,26 @@ User.init (
             type: DataTypes.STRING,
             allowNull: false,
             validate: {
-            // this means the password must be at least four characters long
-            len: [4]
+                // this means the password must be at least four characters long
+                len: [4]
             }
         }
     },
     {
+        hooks: {
+            // set up beforeCreate lifecycle "hook" functionality
+            async beforeCreate(newUserData) {
+                // Hash the password
+                // First param is for password. Second one sets the number of rounds of hashing done
+                newUserData.password = await bcrypt.hash(newUserData.password, 10);
+                return newUserData;
+            },
+            // set up beforeUpdate lifecycle "hook" functionality
+            async beforeUpdate(updatedUserData) {
+                updatedUserData.password = await bcrypt.hash(updatedUserData.password, 10);
+                return updatedUserData;
+            }
+        },
         // Second param/object sets Table configuration options (https://sequelize.org/v5/manual/models-definition.html#configuration))
         // pass in our imported sequelize connection (the direct connection to our database)
         sequelize,
